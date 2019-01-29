@@ -3,5 +3,5 @@ MAINTAINER sunhengzhe@foxmail.com
 COPY . /app/
 WORKDIR /app
 RUN npm install pm2 -g
-EXPOSE 8081
-CMD ["pm2-runtime", "pm2/production.json"]
+EXPOSE 8080
+CMD ["pm2-runtime", "pm2.json"]
