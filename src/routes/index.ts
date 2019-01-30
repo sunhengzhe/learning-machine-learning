@@ -8,15 +8,13 @@ export const register = ( app: express.Application ) => {
 
     app.get("/api/linear-regression", (req: express.Request, res: express.Response) => {
         const pointsInStr: string = req.query.points;
-        const learningRate = 0.01;
+        const learningRate = 0.05;
         const accuracy = 9;
 
         let points: Array<[number, number]> = [];
 
         try {
-            points = JSON.parse(pointsInStr).map(([x, y]: [number, number]): [number, number] => {
-                return [x, y];
-            });
+            points = JSON.parse(pointsInStr);
         } catch (e) {
             res.status(400).send("invalid points");
             return;
@@ -54,7 +52,7 @@ export const register = ( app: express.Application ) => {
         let theta1 = 0;
 
         const startTime = Date.now();
-        while (true) {
+        const interval = setInterval(() => {
             const temp0 = theta0 - learningRate / points.length * sumInTheta0(theta0, theta1);
             const temp1 = theta1 - learningRate / points.length * sumInTheta1(theta0, theta1);
 
@@ -65,16 +63,15 @@ export const register = ( app: express.Application ) => {
                 && temp1.toFixed(accuracy) === theta1.toFixed(accuracy);
 
             if (isStopLearning || Date.now() - startTime > 10000) {
-                break;
+                clearInterval(interval);
+                res.send({
+                    theta0: theta0.toFixed(2),
+                    theta1: theta1.toFixed(2)
+                });
             }
 
             theta0 = temp0;
             theta1 = temp1;
-        }
-
-        res.send({
-            theta0: theta0.toFixed(2),
-            theta1: theta1.toFixed(2)
         });
     });
 };
