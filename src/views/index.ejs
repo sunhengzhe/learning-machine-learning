@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
     <style>
+    body {
+        padding-bottom: 100px;
+    }
+
     .echarts-stage {
         margin: 20px 0;
         box-shadow: 0 0 10px #ccc;
@@ -20,9 +24,66 @@
 <body>
     <div class="container">
         <p>Tips: 请使用 Chrome 访问</p>
-        <h2 class="header">线性回归 - Linear Regress</h2>
-        <a class="linear-regress-charts-clear-btn btn">清空坐标</a>
-        <div id="linear-regress-charts" class="echarts-stage"></div>
+        <div class="linear-regress-charts-single">
+            <h2 class="header">一、单变量线性回归 - Linear Regress with single variable</h2>
+            <a class="linear-regress-charts-clear-btn btn">清空坐标</a>
+            <div id="linear-regress-charts" class="echarts-stage"></div>
+        </div>
+
+        <div class="linear-regress-charts-multiple">
+            <h2 class="header">二、多变量线性回归 - Linear Regress with multiple variables</h2>
+            <p>改变数据重新计算</p>
+            <table id="linear-regress-charts-multiple">
+                <thead>
+                    <tr>
+                        <th>房间数量</th>
+                        <th>所在楼层</th>
+                        <th>房子面积</th>
+                        <th>房价</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr class="training-row">
+                        <td><input value="2" /></td>
+                        <td><input value="3" /></td>
+                        <td><input value="4" /></td>
+                        <td><input value="30" /></td>
+                    </tr>
+                    <tr class="training-row">
+                        <td><input value="3" /></td>
+                        <td><input value="2" /></td>
+                        <td><input value="1" /></td>
+                        <td><input value="17" /></td>
+                    </tr>
+                    <tr class="training-row">
+                        <td><input value="3" /></td>
+                        <td><input value="1" /></td>
+                        <td><input value="4" /></td>
+                        <td><input value="26" /></td>
+                    </tr>
+                    <tr class="training-row">
+                        <td><input value="4" /></td>
+                        <td><input value="1" /></td>
+                        <td><input value="2" /></td>
+                        <td><input value="20" /></td>
+                    </tr>
+                    <tr class="training-row">
+                        <td><input value="1" /></td>
+                        <td><input value="4" /></td>
+                        <td><input value="3" /></td>
+                        <td><input value="27" /></td>
+                    </tr>
+                    <tr class="forecast-row">
+                        <td><input value="0" /></td>
+                        <td><input value="0" /></td>
+                        <td><input value="0" /></td>
+                        <td><span class="result">计算中...</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="function-text">计算中...</p>
+        </div>
     </div>
 
     <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
@@ -172,6 +233,75 @@
             })
         })();
 
+    </script>
+    <script>
+        (function () {
+            const hypothesis = (coords, thetas) => {
+                let total = 0;
+                thetas.forEach((theta, i) => {
+                    total += i === 0 ? theta * 1 : theta * coords[i - 1];
+                });
+                return total;
+            };
+
+            const getFunctionText = (thetas) => {
+                let func = 'y = ';
+
+                thetas.forEach((theta, i) => {
+                    const thetaText = `<span style="color:red">${theta}</span>`
+                    func += i === 0 ? thetaText : ` + ${thetaText} * x${i}`;
+                });
+
+                return func;
+            };
+
+            const $table = $('#linear-regress-charts-multiple');
+            const $result = $table.find('.result');
+            const $functionText = $('.linear-regress-charts-multiple .function-text');
+
+            let thetas = [];
+
+            function getTrainingData() {
+                const $trs = $table.find('tbody tr.training-row');
+                const trainingData = [];
+                for (let i = 0; i < $trs.length; i++) {
+                    const $tr = $trs.eq(i);
+                    const $inputs = $tr.find('input');
+                    let point = $inputs.map((index, input) => {
+                        return Number(input.value || 0)
+                    }).toArray();
+                    trainingData.push(point);
+                }
+                return trainingData;
+            }
+
+            function calculateResult() {
+                const $inputs = $table.find('tbody tr.forecast-row input');
+                const xAxis = $inputs.map((index, input) => Number(input.value || 0))
+                const result = hypothesis(xAxis, thetas);
+                $result.text(result);
+            }
+
+            function reloadTheta() {
+                $result.text('计算中...');
+
+                const trainingData = getTrainingData();
+
+                req = $.get('/api/linear-regression/multiple-variables', {
+                    points: JSON.stringify(trainingData)
+                }, (resp) => {
+                    thetas = Object.values(resp);
+                    const functionText = getFunctionText(thetas);
+                    $functionText.html(functionText);
+                    calculateResult();
+                })
+            }
+
+            $table.find('tbody tr.training-row input').on('input', _.debounce(reloadTheta, 500));
+            $table.find('tbody tr.forecast-row input').on('input', calculateResult);
+
+            reloadTheta();
+        })();
     </script>
 </body>
 </html>
