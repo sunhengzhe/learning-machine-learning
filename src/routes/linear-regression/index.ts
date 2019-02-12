@@ -2,6 +2,32 @@ import * as express from "express";
 
 const router = express.Router();
 
+const hypothesis = (coords: number[], thetas: number[]): number => {
+    let total = 0;
+    thetas.forEach((theta, i) => {
+        total += i === 0 ? theta * 1 : theta * coords[i - 1];
+    });
+    return total;
+};
+
+const calculateTheta = (learningRate: number, points: number[][], thetas: number[]): number[] => {
+    const resultThetas: number[] = [];
+    const thetaNum = thetas.length;
+
+    for (let i = 0; i < thetaNum; i++) {
+        let total = 0;
+        points.forEach((coords) => {
+            const diff = hypothesis(coords, thetas) - coords[coords.length - 1];
+            total += diff * (i === 0 ? 1 : coords[i - 1]);
+        });
+
+        const temp = thetas[i] - learningRate / points.length * total;
+        resultThetas.push(temp);
+    }
+
+    return resultThetas;
+};
+
 router.get("/single-variable", (req: express.Request, res: express.Response) => {
   const pointsInStr: string = req.query.points;
   const learningRate = 0.05;
@@ -25,31 +51,12 @@ router.get("/single-variable", (req: express.Request, res: express.Response) => 
       return;
   }
 
-  const hypothesis = (t0: number, t1: number, x: number): number => t0 + t1 * x;
-
-  const sumInTheta0 = (t0: number, t1: number): number => {
-      let total = 0;
-      points.forEach(([x, y]) => {
-          total += hypothesis(t0, t1, x) - y;
-      });
-      return total;
-  };
-
-  const sumInTheta1 = (t0: number, t1: number): number => {
-      let total = 0;
-      points.forEach(([x, y]) => {
-          total += (hypothesis(t0, t1, x) - y) * x;
-      });
-      return total;
-  };
-
   let theta0 = 0;
   let theta1 = 0;
 
   const startTime = Date.now();
   const interval = setInterval(() => {
-      const temp0 = theta0 - learningRate / points.length * sumInTheta0(theta0, theta1);
-      const temp1 = theta1 - learningRate / points.length * sumInTheta1(theta0, theta1);
+      const [temp0, temp1] = calculateTheta(learningRate, points, [theta0, theta1]);
 
       // tslint:disable-next-line:no-console
       console.log(temp0, temp1);
