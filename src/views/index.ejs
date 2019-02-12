@@ -21,7 +21,7 @@
     <div class="container">
         <p>Tips: 请使用 Chrome 访问</p>
         <h2 class="header">线性回归 - Linear Regress</h2>
-        <a class="clear-btn btn">清空坐标</a>
+        <a class="linear-regress-charts-clear-btn btn">清空坐标</a>
         <div id="linear-regress-charts" class="echarts-stage"></div>
     </div>
 
@@ -30,145 +30,148 @@
     <script src="https://cdn.bootcss.com/lodash.js/4.17.11/lodash.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <script>
-        const myChart = echarts.init(document.getElementById('linear-regress-charts'));
+        (function () {
+            const myChart = echarts.init(document.getElementById('linear-regress-charts'));
 
-        const symbolSize = 20;
-        let data = [];
+            const symbolSize = 20;
+            let data = [];
 
-        const option = {
-            title: {
-                text: '点击加入新坐标',
-                x: 10,
-                y: 10
-            },
-            tooltip: {
-                formatter: function (params) {
-                    const curData = params.data || [0, 0];
-                    return curData[0].toFixed(2) + ', ' + curData[1].toFixed(2);
-                }
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
-            },
-            xAxis: {
-                min: 0,
-                max: 10,
-                type: 'value',
-                axisLine: {onZero: false}
-            },
-            yAxis: {
-                min: 0,
-                max: 10,
-                type: 'value',
-                axisLine: {onZero: false}
-            },
-            series: [
-                {
-                    id: 'points',
-                    type: 'scatter',
-                    markLine: {
-                        lineStyle: {
-                            normal: {
-                                type: 'solid'
-                            }
-                        },
-                    },
-                    symbolSize,
-                    data
-                }
-            ]
-        };
-
-        let req;
-        const fetchData = _.debounce(() => {
-            req && req.abort();
-            myChart.showLoading();
-            req = $.get('/api/linear-regression', {
-                    points: JSON.stringify(data)
-                }, (resp) => {
-                const theta0 = Number(resp.theta0);
-                const theta1 = Number(resp.theta1);
-
-                const markLineDatas = [
-                    {
-                        coord: [0, theta0],
-                        symbol: 'none'
-                    },
-                    {
-                        coord: [(0 - theta0) / theta1, 0],
-                        symbol: 'none'
-                    },
-                    {
-                        coord: [10, theta0 + theta1 * 10],
-                        symbol: 'none'
-                    },
-                    {
-                        coord: [(10 - theta0) / theta1, 10],
-                        symbol: 'none'
+            const option = {
+                title: {
+                    text: '点击加入新坐标',
+                    x: 10,
+                    y: 10
+                },
+                tooltip: {
+                    formatter: function (params) {
+                        const curData = params.data || [0, 0];
+                        return curData[0].toFixed(2) + ', ' + curData[1].toFixed(2);
                     }
-                ].filter(item => {
-                    const [x, y] = item.coord;
-                    return x >= 0 && x <= 10 && y >= 0 && y <= 10;
-                });
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    min: 0,
+                    max: 10,
+                    type: 'value',
+                    axisLine: {onZero: false}
+                },
+                yAxis: {
+                    min: 0,
+                    max: 10,
+                    type: 'value',
+                    axisLine: {onZero: false}
+                },
+                series: [
+                    {
+                        id: 'points',
+                        type: 'scatter',
+                        markLine: {
+                            lineStyle: {
+                                normal: {
+                                    type: 'solid'
+                                }
+                            },
+                        },
+                        symbolSize,
+                        data
+                    }
+                ]
+            };
 
+            let req;
+            const fetchData = _.debounce(() => {
+                req && req.abort();
+                myChart.showLoading();
+                req = $.get('/api/linear-regression/single-variable', {
+                        points: JSON.stringify(data)
+                    }, (resp) => {
+                    const theta0 = Number(resp.theta0);
+                    const theta1 = Number(resp.theta1);
+
+                    const markLineDatas = [
+                        {
+                            coord: [0, theta0],
+                            symbol: 'none'
+                        },
+                        {
+                            coord: [(0 - theta0) / theta1, 0],
+                            symbol: 'none'
+                        },
+                        {
+                            coord: [10, theta0 + theta1 * 10],
+                            symbol: 'none'
+                        },
+                        {
+                            coord: [(10 - theta0) / theta1, 10],
+                            symbol: 'none'
+                        }
+                    ].filter(item => {
+                        const [x, y] = item.coord;
+                        return x >= 0 && x <= 10 && y >= 0 && y <= 10;
+                    });
+
+                    myChart.setOption({
+                        series: [{
+                            id: 'points',
+                            markLine: {
+                                tooltip: {
+                                    formatter: `y = ${theta0} + ${theta1} * x`
+                                },
+                                data: [markLineDatas]
+                            }
+                        }]
+                    });
+
+                    myChart.hideLoading();
+                })
+            }, 500);
+
+            const zr = myChart.getZr();
+
+            zr.on('click', function (params) {
+                const pointInPixel = [params.offsetX, params.offsetY];
+                const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
+
+                if (myChart.containPixel('grid', pointInPixel)) {
+                    data.push(pointInGrid);
+
+                    myChart.setOption({
+                        series: [{
+                            id: 'points',
+                            data
+                        }]
+                    });
+
+                    fetchData();
+                }
+            });
+
+            zr.on('mousemove', function (params) {
+                const pointInPixel = [params.offsetX, params.offsetY];
+                zr.setCursorStyle(myChart.containPixel('grid', pointInPixel) ? 'copy' : 'default');
+            });
+
+            myChart.setOption(option);
+
+            $('.linear-regress-charts-clear-btn').click(() => {
+                data = [];
                 myChart.setOption({
                     series: [{
                         id: 'points',
+                        data: [],
                         markLine: {
-                            tooltip: {
-                                formatter: `y = ${theta0} + ${theta1} * x`
-                            },
-                            data: [markLineDatas]
+                            data: []
                         }
                     }]
                 });
-
-                myChart.hideLoading();
             })
-        }, 500);
+        })();
 
-        const zr = myChart.getZr();
-
-        zr.on('click', function (params) {
-            const pointInPixel = [params.offsetX, params.offsetY];
-            const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
-
-            if (myChart.containPixel('grid', pointInPixel)) {
-                data.push(pointInGrid);
-
-                myChart.setOption({
-                    series: [{
-                        id: 'points',
-                        data
-                    }]
-                });
-
-                fetchData();
-            }
-        });
-
-        zr.on('mousemove', function (params) {
-            const pointInPixel = [params.offsetX, params.offsetY];
-            zr.setCursorStyle(myChart.containPixel('grid', pointInPixel) ? 'copy' : 'default');
-        });
-
-        myChart.setOption(option);
-
-        $('.clear-btn').click(() => {
-            data = [];
-            myChart.setOption({
-                series: [{
-                    id: 'points',
-                    data: [],
-                    markLine: {
-                        data: []
-                    }
-                }]
-            });
-        })
     </script>
 </body>
 </html>
